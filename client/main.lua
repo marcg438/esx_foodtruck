@@ -1,14 +1,7 @@
-ESX = nil
+ESX = exports['es_extended']:getSharedObject()
 local PlayerData, CurrentActionData = {}, {}
 local LastZone, CurrentAction, CurrentActionMsg, FoodInPlace
 local OnJob, Cooking, HasAlreadyEnteredMarker = false, false, false
-
-Citizen.CreateThread(function()
-	while ESX == nil do
-		TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
-		Citizen.Wait(0)
-	end
-end)
 
 function OpenCookingMenu(grill)
 	local elements = {

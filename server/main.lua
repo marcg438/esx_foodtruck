@@ -1,8 +1,7 @@
-ESX                = nil
+ESX = exports['es_extended']:getSharedObject()
 PlayersHarvesting  = {}
 MarketPrices		= {}
 
-TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
 
 TriggerEvent('esx_phone:registerNumber', 'foodtruck', 'Client FoodTruck', false, false)
 TriggerEvent('esx_society:registerSociety', 'foodtruck', 'Foodtruck', 'society_foodtruck', 'society_foodtruck', 'society_foodtruck', {type = 'public'})

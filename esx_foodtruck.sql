@@ -17,7 +17,7 @@ INSERT INTO `job_grades` (job_name, grade, name, label, salary, skin_male, skin_
   (@job_name, 1, 'boss', 'Patron', 300, '{}', '{}')
 ;
 
-INSERT INTO `items` (`name`, `label`, `limit`) VALUES  
+INSERT INTO `items` (`name`, `label`, `weight`) VALUES  
     ('cola', 'Cola', 20),
     ('vegetables', 'Légume', 20),
     ('meat', 'Viande', 20),
