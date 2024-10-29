@@ -2,6 +2,87 @@ ESX = exports['es_extended']:getSharedObject()
 local PlayerData, CurrentActionData = {}, {}
 local LastZone, CurrentAction, CurrentActionMsg, FoodInPlace
 local OnJob, Cooking, HasAlreadyEnteredMarker = false, false, false
+local spawnedProps = {}
+
+function PlaceProp(propModel)
+	local playerPed = GetPlayerPed(-1)
+    -- Check if the player is in any vehicle
+    if IsPedInAnyVehicle(playerPed, false) then
+        return
+    end
+
+	-- Get the model hash of the prop we want to spawn
+	local modelHash = GetHashKey(propModel)
+	
+	-- Check if the prop already exists in `spawnedProps`
+	for _, prop in ipairs(spawnedProps) do
+		if DoesEntityExist(prop) and GetEntityModel(prop) == modelHash then
+			print(("Prop already exists: %s"):format(propModel))
+			return  -- Exit the function if the prop already exists
+		end
+	end
+
+	-- If we reach here, the prop doesn't exist yet, so we can spawn itssa
+	local playerPed = GetPlayerPed(-1)
+	local playerCoords = GetEntityCoords(playerPed)
+
+	if not HasModelLoaded(modelHash) then
+		-- If the model isnt loaded we request the loading of the model and wait that the model is loaded
+		RequestModel(modelHash)
+	
+		while not HasModelLoaded(modelHash) do
+			Citizen.Wait(1)
+		end
+	end
+
+	-- Calculate the offset in front of the player
+	local offsetDistance = 1.0  -- Distance in front of the player
+	local heading = GetEntityHeading(playerPed) + 180
+	local x, y, z   = table.unpack(playerCoords)
+	local xOffset = GetEntityForwardX(playerPed) * offsetDistance
+	local yOffset = GetEntityForwardY(playerPed) * offsetDistance
+
+
+	-- Create the new prop object
+	local prop = CreateObject(modelHash, playerCoords.x + xOffset, playerCoords.y + yOffset, playerCoords.z, true, true, true)
+
+
+	if prop and DoesEntityExist(prop) then
+		PlaceObjectOnGroundProperly(prop)
+		  -- Turn the object around by 180 degrees
+		  local newHeading = heading + 180
+		  if newHeading >= 360 then
+			  newHeading = newHeading - 360  -- Ensure heading wraps around
+		  end
+		  SetEntityHeading(prop, newHeading)  -- Align the prop's heading with the player's, plus 180 degrees
+		print("Prop created with handle:", prop)
+		table.insert(spawnedProps, prop)
+	else
+		print("Error: Prop creation failed.")
+	end
+end
+
+function RemoveProp(propToRemove)
+	local playerPed = GetPlayerPed(-1)
+	-- Make sure the player is not in a car
+	if IsPedInAnyVehicle(playerPed, true) then
+		return
+	end
+    -- Ensure the prop to remove is valid and exists
+    if propToRemove and DoesEntityExist(propToRemove) then
+        for i, prop in ipairs(spawnedProps) do
+            if prop == propToRemove then
+                print(("Removing prop: %s"):format(propToRemove))
+                DeleteEntity(propToRemove)  -- Remove the prop from the game world
+                table.remove(spawnedProps, i)  -- Remove the prop from the `spawnedProps` list
+                ESX.ShowNotification(_U('cleaned'))  -- Confirmation notification
+                return  -- Exit the function once the prop is found and deleted
+            end
+        end
+    else
+        print("Error: Invalid or nonexistent prop passed to RemoveProp function.")
+    end
+end
 
 function OpenCookingMenu(grill)
 	local elements = {
@@ -223,15 +304,10 @@ function OpenFoodTruckMarketMenu()
 				rows = {}
 			}
 
-			local itemName = nil
-			local price = nil
-
 			for j=1, #MarketPrices, 1 do
-
 				for i=1, #fridge, 1 do
 					if fridge[i].name == MarketPrices[j].item then
-						table.insert(elements.rows,
-						{
+						table.insert(elements.rows, {
 							data = fridge[i],
 							cols = {
 								MarketPrices[j].label,
@@ -240,33 +316,58 @@ function OpenFoodTruckMarketMenu()
 								'{{' .. _U('buy_10') .. '|buy10}} {{' .. _U('buy_50') .. '|buy50}}'
 							}
 						})
-
 						break
 					end
 				end
 			end
 
-			ESX.UI.Menu.CloseAll()
 
+			for i, item in ipairs(MarketPrices) do
+				table.insert(elements.rows, {
+					data = item,
+					cols = {
+						item.label,
+						item.price
+					}
+				})
+			end
+
+			ESX.UI.Menu.CloseAll()
 			ESX.UI.Menu.Open('list', GetCurrentResourceName(), 'foodtruck', elements,
+            function(data, menu)
+                if data.value == 'buy10' then
+                    TriggerServerEvent('esx_foodtruck:buyItem', 10, data.data.name)
+				elseif data.value == 'buy50' then
+					TriggerServerEvent('esx_foodtruck:buyItem', 50, data.data.name)
+				end
+                end,
 				function(data, menu)
-					if data.value == 'buy10' then
-						TriggerServerEvent('esx_foodtruck:buyItem', 10, data.data.name)
-					elseif data.value == 'buy50' then
-						TriggerServerEvent('esx_foodtruck:buyItem', 50, data.data.name)
-					end
-					menu.close()
-				end, function(data, menu)
 					menu.close()
 					CurrentAction     = 'foodtruck_market_menu'
 					CurrentActionMsg  = _U('foodtruck_market_menu')
 					CurrentActionData = {}
 				end)
+			-- ESX.UI.Menu.Open('list', GetCurrentResourceName(), 'foodtruck', elements,
+			-- 	function(data, menu)
+			-- 		if data.value == 'buy10' then
+			-- 			TriggerServerEvent('esx_foodtruck:buyItem', 10, data.data.name)
+			-- 		elseif data.value == 'buy50' then
+			-- 			TriggerServerEvent('esx_foodtruck:buyItem', 50, data.data.name)
+			-- 		end
+			-- 		menu.close()
+			-- 	end,
+			-- 	function(data, menu)
+			-- 		menu.close()
+			-- 		CurrentAction     = 'foodtruck_market_menu'
+			-- 		CurrentActionMsg  = _U('foodtruck_market_menu')
+			-- 		CurrentActionData = {}
+			-- 	end)
 		end)
 	else
 		ESX.ShowNotification(_U('need_more_exp'))
 	end
 end
+
 
 function OpenFoodTruckBilling()
 	ESX.UI.Menu.Open('dialog', GetCurrentResourceName(), 'billing', {
@@ -309,7 +410,7 @@ function OpenMobileFoodTruckActionsMenu()
 				OpenCookingMenu()
 			elseif data.current.value == 'gears' then
 				ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'foodtruck_gears', {
-						title    = _U('gear'),
+						title    = _U('gears'),
 						align    = 'top-left',
 						elements = {
 							{label = _U('grill'), 	value = 'prop_bbq_5'},
@@ -317,39 +418,52 @@ function OpenMobileFoodTruckActionsMenu()
 							{label = _U('chair'), 	value = 'prop_table_03_chr'}, --'prop_cs_steak'prop_table_03_chr
 		  					{label = _U('clean'),   value = 'clean'}
 						},
-					}, function(data, menu)
-
-						if data.current.value ~= 'clean' then
-							local playerPed = GetPlayerPed(-1)							
-							local x, y, z   = table.unpack(GetEntityCoords(playerPed))
+					}, function(data2, menu2)
+						local playerPed = GetPlayerPed(-1)
+						local playerCoords = GetEntityCoords(playerPed)							
+						if data2.current.value ~= 'clean' then
+							local x, y, z   = table.unpack(playerCoords)
 							local xF = GetEntityForwardX(playerPed) * 1.0
 							local yF = GetEntityForwardY(playerPed) * 1.0
+							PlaceProp(data2.current.value)
+							-- ESX.Game.SpawnObject(data2.current.value, {
+							-- 	x = x + xF,
+							-- 	y = y + yF,
+							-- 	z = z
+							-- }, function(obj)
+							-- end)
 
-							ESX.Game.SpawnObject(data.current.value, {
-								x = x + xF,
-								y = y + yF,
-								z = z
-							}, function(obj)
-								-- chairs
-								if data.current.value == 'prop_table_03_chr' then
-									SetEntityHeading(obj, -GetEntityHeading(playerPed))
-								else
-									SetEntityHeading(obj, GetEntityHeading(playerPed))
-								end
-								PlaceObjectOnGroundProperly(obj)
-							end)
-
-							menu.close()
+							menu2.close()
 						else
-							local obj, dist = ESX.Game.GetClosestObject({'prop_bbq_5', 'prop_table_para_comb_02', 'prop_table_03_chr'})
-							if dist < 3.0 then
-								DeleteEntity(obj)
+							local objectModels = {'prop_bbq_5', 'prop_table_para_comb_02', 'prop_table_03_chr'}  -- List of object models
+
+							local objectNames = {
+								[GetHashKey('prop_bbq_5')] = 'prop_bbq_5',
+								[GetHashKey('prop_table_para_comb_02')] = 'prop_table_para_comb_02',
+								[GetHashKey('prop_table_03_chr')] = 'prop_table_03_chr',
+							}
+
+							local closestObject = nil
+							local closestDistance = 1.5
+	
+								for modelHash, modelName in pairs(objectNames) do
+									local object = GetClosestObjectOfType(playerCoords.x, playerCoords.y, playerCoords.z, 1.5, modelHash, false, false, false)
+									if DoesEntityExist(object) then
+										local objCoords = GetEntityCoords(object)
+										local dist = #(playerCoords - objCoords)   -- Explicit distance calculation
+										if dist < closestDistance then
+											closestObject, closestDistance = object, dist
+										end
+									end
+								end
+								if closestObject and closestDistance < 1.5 then  -- Ensure proximity check
+								RemoveProp(closestObject)
 							else
-								ESX.ShowNotification(_U('clean_too_far'))
+								ESX.ShowNotification(_U('clean_too_far'))  -- Notify if no object is found nearby
 							end
 						end
-					end, function(data, menu)
-						menu.close()
+					end, function(data3, menu3)
+						menu3.close()
 					end)
 			end
 		end, function(data, menu)

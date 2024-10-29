@@ -31,6 +31,7 @@ Locales['en'] = {
   ['table'] = 'table',
   ['chair'] = 'chair',
   ['clean'] = 'clean up',
+  ['cleaned'] = 'cleaned up',
   ['bread'] = 'bread',
   ['meat'] = 'meat',
   ['vegetables'] = 'vegetables',

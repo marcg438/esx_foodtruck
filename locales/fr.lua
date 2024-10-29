@@ -20,7 +20,7 @@ Locales['fr'] = {
   ['buy_50'] = 'acheter 50',
   ['cook'] = 'préparer',
   ['billing'] = 'facturation',
-  ['gear'] = 'matériel',
+  ['gears'] = 'matériel',
   ['purchased'] = 'Achat effectué.',
 
   -- Boss Menu
@@ -31,6 +31,7 @@ Locales['fr'] = {
   ['table'] = 'table',
   ['chair'] = 'chaise',
   ['clean'] = 'Ranger matériel',
+  ['cleaned'] = 'matériel rangé.',
   ['bread'] = 'pain',
   ['meat'] = 'viande',
   ['vegetables'] = 'légumes',
